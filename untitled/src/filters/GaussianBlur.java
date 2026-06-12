@@ -3,6 +3,8 @@ package filters;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 
+import static constants.ImageConstants.*;
+
 public class GaussianBlur {
 
     public static BufferedImage blur(BufferedImage src, double sigma) {
@@ -53,13 +55,13 @@ public class GaussianBlur {
                     int idx = Math.min(len - 1, Math.max(0, i + k));
                     int px = in[base + idx * stride];
                     float blurWeight = kernel[k + radius];
-                    a += ((px >>> 24) & 0xFF) * blurWeight;
-                    r += ((px >>> 16) & 0xFF) * blurWeight;
-                    g += ((px >>> 8)  & 0xFF) * blurWeight;
-                    b += ( px         & 0xFF) * blurWeight;
+                    a += ((px >>> ALFA_SHIFT) & COLOR_MASK) * blurWeight;
+                    r += ((px >>> RED_SHIFT) & COLOR_MASK) * blurWeight;
+                    g += ((px >>> GREEN_SHIFT) & COLOR_MASK) * blurWeight;
+                    b += ((px >>> BLUE_SHIFT) & COLOR_MASK) * blurWeight;
                 }
                 out[base + i * stride] =
-                        ((int) a << 24) | ((int) r << 16) | ((int) g << 8) | (int) b;
+                        ((int) a << ALFA_SHIFT) | ((int) r << RED_SHIFT) | ((int) g << GREEN_SHIFT) | ((int) b << BLUE_SHIFT);
             }
         }
     }

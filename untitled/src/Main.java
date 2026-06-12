@@ -1,34 +1,22 @@
-import filters.GaussianBlur;
+import helper.ImageProcessor;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.util.Scanner;
 
 public class Main {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
         System.out.println("Enter image full name (ex. image.jpg): ");
         String imageName = scanner.nextLine();
-        String extension = imageName.substring(imageName.lastIndexOf('.') + 1);
-        if (extension.equalsIgnoreCase("jpg")) {
-            extension = "jpeg";
-        }
-        scanner.close();
 
-        File outDir = new File("./BluredImage");
-        outDir.mkdirs();
+        System.out.println("Choose filter: 1 = Gaussian Blur, 2 = Brightness Blur");
+        int choice = Integer.parseInt(scanner.nextLine().trim());
 
-        try{
-            BufferedImage src = ImageIO.read(new File(imageName));
-            BufferedImage blurred = GaussianBlur.blur(src, 10.0);
-
-            boolean ok = ImageIO.write(blurred, extension, new File(outDir, "blured_" + imageName));
-            if (!ok) throw new IOException("No writer for format: " + extension);
+        try {
+            ImageProcessor.process(imageName, choice);
+            System.out.println("Done.");
         } catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
+            System.err.println("Error: " + e.getMessage());
         }
     }
 }
