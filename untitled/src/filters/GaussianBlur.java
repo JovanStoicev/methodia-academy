@@ -1,3 +1,5 @@
+package filters;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 
@@ -7,14 +9,22 @@ public class GaussianBlur {
         int radius = Math.max(1, (int) Math.ceil(sigma * 3));
         float[] kernel = buildKernel(sigma, radius);
 
-        int width = src.getWidth(), height = src.getHeight();
-        BufferedImage img = toIntARGB(src);
+        int width = src.getWidth(), height = src.getHeight();BufferedImage img = toIntARGB(src);
         int[] pixels = ((DataBufferInt) img.getRaster().getDataBuffer()).getData();
         int[] tmp = new int[width * height];
 
         convolve1D(pixels, tmp, width, height, kernel, radius, true);
         convolve1D(tmp, pixels, width, height, kernel, radius, false);
+
+        if (src.getTransparency() == BufferedImage.OPAQUE) {
+            BufferedImage rgb = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D g = rgb.createGraphics();
+            g.drawImage(img, 0, 0, java.awt.Color.WHITE, null);
+            g.dispose();
+            return rgb;
+        }
         return img;
+
     }
 
     private static float[] buildKernel(double sigma, int radius) {
