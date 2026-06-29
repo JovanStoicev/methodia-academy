@@ -1,51 +1,104 @@
 package helper;
 
-import filters.BrightnessBlurFilter;
-import filters.GaussianBlur;
+import filters.registry.Filter;
+import filters.registry.FilterRegistry;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
+import java.net.URI;
 
 public class ImageProcessor {
 
-    private static final String OUTPUT_DIR = "./BluredImage";
+    private static final String OUTPUT_DIR = "./ProcessedImages";
+    private static final String OUTPUT_FILE_PREFIX = "processed_image.";
 
-    public static void process(String imageName, int filterChoice) throws IOException {
-        String extension = imageName.substring(imageName.lastIndexOf('.') + 1).toLowerCase();
-        BufferedImage src = ImageIO.read(new File(imageName));
-        if (src == null) throw new IOException("Could not read image: " + imageName);
+    public static void processPipeline(String imagePath, String[] args) throws Exception {
+        String extension = getExtension(imagePath);
 
-        BufferedImage out;
-        String prefix;
-
-        switch (filterChoice) {
-            case 1 -> { out = GaussianBlur.blur(src, 10.0); prefix = "blured_"; }
-            case 2 -> { out = BrightnessBlurFilter.apply(src, 10); prefix = "brightness_blur_";
-            }
-            default -> throw new IllegalArgumentException("Unknown filter: " + filterChoice);
+        BufferedImage image = readImage(imagePath);
+        if (image == null) {
+            throw new IllegalArgumentException("Could not read image: " + imagePath);
         }
 
-        save(stripAlphaIfNeeded(out, extension), extension, prefix + imageName);
+        int index = 1;
+
+        while (index < args.length) {
+            String filterName = args[index].toLowerCase();
+
+            Filter filter = FilterRegistry.get(filterName);
+
+            if (filter == null) {
+                throw new IllegalArgumentException("Unknown filter: " + filterName);
+            }
+
+            int paramsStart = index + 1;
+            int paramsEnd = paramsStart + filter.argumentCount();
+
+            if (paramsEnd > args.length) {
+                throw new IllegalArgumentException(
+                        filterName + " requires " + filter.argumentCount() + " argument(s)"
+                );
+            }
+
+            image = filter.apply(image, args, paramsStart);
+
+            index = paramsEnd;
+        }
+
+        save(stripAlphaIfNeeded(image, extension), extension, OUTPUT_FILE_PREFIX + extension);
     }
 
-    private static void save(BufferedImage img, String extension, String fileName) throws IOException {
-        new File(OUTPUT_DIR).mkdirs();
-        File outFile = new File(OUTPUT_DIR, fileName);
-        if (!ImageIO.write(img, extension, outFile)) {
-            throw new IOException("No writer found for format: " + extension);
+    private static BufferedImage readImage(String imagePath) throws Exception {
+        if (isHttpUrl(imagePath)) {
+            return ImageIO.read(URI.create(imagePath).toURL());
         }
+
+        return ImageIO.read(new File(imagePath));
+    }
+
+    private static void save(BufferedImage img, String extension, String fileName) throws Exception {
+        new File(OUTPUT_DIR).mkdirs();
+
+        File outFile = new File(OUTPUT_DIR, fileName);
+
+        if (!ImageIO.write(img, extension, outFile)) {
+            throw new IllegalArgumentException("No writer found for format: " + extension);
+        }
+    }
+
+    private static String getExtension(String imagePath) {
+        String pathWithoutQuery = imagePath.split("[?#]", 2)[0];
+        int dot = pathWithoutQuery.lastIndexOf(".");
+        if (dot == -1) {
+            throw new IllegalArgumentException("Image must have extension");
+        }
+
+        return pathWithoutQuery.substring(dot + 1).toLowerCase();
+    }
+
+    private static boolean isHttpUrl(String imagePath) {
+        String normalized = imagePath.toLowerCase();
+        return normalized.startsWith("http://") || normalized.startsWith("https://");
     }
 
     private static BufferedImage stripAlphaIfNeeded(BufferedImage img, String extension) {
-        if (!extension.equals("jpg") && !extension.equals("jpeg") && !extension.equals("bmp")) return img;
-        BufferedImage rgb = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
+        if (!extension.equals("jpg") && !extension.equals("jpeg") && !extension.equals("bmp")) {
+            return img;
+        }
+
+        BufferedImage rgb = new BufferedImage(
+                img.getWidth(),
+                img.getHeight(),
+                BufferedImage.TYPE_INT_RGB
+        );
+
         Graphics2D g = rgb.createGraphics();
         g.drawImage(img, 0, 0, Color.WHITE, null);
         g.dispose();
+
         return rgb;
     }
 }
